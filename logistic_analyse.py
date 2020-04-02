@@ -2,7 +2,8 @@
 """
 Created on Wed Apr  1 10:59:42 2020
 
-@author: Johan
+@author: Johan Odelius
+Luleå University of Technology
 """
 
 import pandas as pd
