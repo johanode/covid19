@@ -87,7 +87,7 @@ def prepare(df, country, xhat=np.arange(0,100)):
 def fit(df, data_label=None, countries=['Sweden'], p0=None):
     # Init plot
     Nc = len(countries)
-    nax = (Nc,2)    
+    nax = (2,Nc)    
     fig, axes = plt.subplots(nrows=nax[0], ncols=nax[1])
      
     output = {} 
@@ -141,7 +141,7 @@ def fit(df, data_label=None, countries=['Sweden'], p0=None):
     #%%
 #countries = ['ChinaHubei','Italy','Spain','France','US','United Kingdom']
 #countries = ['Italy','Germany','Finland','Norway','Denmark','Sweden']
-countries=['Italy','Sweden']
+countries=['Sweden','Italy']
 
 #m = fit(df_cases, data_label='Confirmed cases', countries=countries, p0=[5,50,10000])
 m = fit(df_deaths, data_label='Deaths', countries=countries, p0=[5,20,2000])
