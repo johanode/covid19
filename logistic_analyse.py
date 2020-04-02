@@ -145,3 +145,4 @@ countries=['Italy','Sweden']
 
 #m = fit(df_cases, data_label='Confirmed cases', countries=countries, p0=[5,50,10000])
 m = fit(df_deaths, data_label='Deaths', countries=countries, p0=[5,20,2000])
+#plt.savefig('Deathplot.png')
