@@ -23,6 +23,8 @@ purl = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_co
 csv_cases = pd.read_csv(purl+'time_series_covid19_confirmed_global.csv',sep=',',header=0,index_col=False)
 csv_deaths = pd.read_csv(purl+'time_series_covid19_deaths_global.csv',sep=',',header=0,index_col=False)
 
+last_update = pd.to_datetime(csv_cases.columns[-1]).strftime('%Y-%m-%d')
+
 # Create time serias data
 def totimeseries(df):
     data = df.iloc[:,5:].transpose()
@@ -33,11 +35,12 @@ def totimeseries(df):
 
     colnames = [a+b for a,b in zip(country,state)]
     data.columns=colnames    
-    data.index = pd.to_datetime(data.index)
+    data.index = pd.to_datetime(data.index)    
     return data
 
 df_deaths = totimeseries(csv_deaths)
 df_cases = totimeseries(csv_cases)
+
 
 #%% Plot selected countries
 countries = ['Italy','Spain','US','France','Germany','Finland','Norway','Denmark','Sweden']
@@ -45,12 +48,6 @@ countries = ['Italy','Spain','US','France','Germany','Finland','Norway','Denmark
 fig,axes = plt.subplots(nrows=2,ncols=2)
 df_cases.loc[:,countries].plot(ax=axes[0,0],title='Confirmed cases')
 df_deaths.loc[:,countries].plot(ax=axes[1,0],title='Deaths')
-df_cases.loc[:,countries].plot(ax=axes[0,1],title='Confirmed cases')
-df_deaths.loc[:,countries].plot(ax=axes[1,1],title='Deaths')
-
-fig,axes = plt.subplots(nrows=2,ncols=2)
-df_cases.loc[:,countries].diff().plot(ax=axes[0,0],title='Confirmed new cases')
-df_deaths.loc[:,countries].diff().plot(ax=axes[1,0],title='New deaths')
 df_cases.loc[:,countries].diff().plot(ax=axes[0,1],title='Confirmed new cases')
 df_deaths.loc[:,countries].diff().plot(ax=axes[1,1],title='New deaths')
 
@@ -97,7 +94,8 @@ def fit(df, data_label=None, countries=['Sweden'], p0=None):
         
         # Plot data
         plt.subplot(nax[0],nax[1],n+1)
-        plt.plot(data['t'], data['y'], '-', label=data_label)
+        plt.plot(data['t'], data['y'], '-', label='data')
+        plt.ylabel(data_label)
        
         try:
             # Logistic function fit (i.e. cdf of logistic distribution)
@@ -128,7 +126,8 @@ def fit(df, data_label=None, countries=['Sweden'], p0=None):
         
         # Plot cases per day
         plt.subplot(nax[0],nax[1],n+1+Nc)
-        plt.bar(data['t'], data['dy'], label=data_label+' per day')
+        plt.bar(data['t'], data['dy'], label='data')
+        plt.ylabel(data_label+' per day')
         
         # Plot logistic pdf
         dyhat = popt[2]*stats.logistic.pdf(data['xhat'],loc=popt[1],scale=popt[0])
