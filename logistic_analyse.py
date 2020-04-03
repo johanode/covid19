@@ -41,6 +41,16 @@ def totimeseries(df):
 df_deaths = totimeseries(csv_deaths)
 df_cases = totimeseries(csv_cases)
 
+#%%
+#set x=0 when first case is reported
+first_day_case = {}
+for country in df_cases.columns:
+    is_cases = df_cases[country].values>0
+    if is_cases.any():
+        first_day_case[country] = np.where(is_cases)[0][0]
+    else:
+        first_day_case[country] = []
+    
 
 #%% Plot selected countries
 countries = ['Italy','Spain','US','France','Germany','Finland','Norway','Denmark','Sweden']
@@ -66,7 +76,7 @@ def prepare(df, country, xhat=np.arange(0,100)):
     ys = df.loc[:,country]
     
     # set x=0 when first case is reported
-    i = np.where(ys.values>0)[0]
+    i = np.arange(first_day_case[country],len(ys))    
     
     y = ys.values[i]
     dy = ys.diff().values[i]
@@ -78,70 +88,74 @@ def prepare(df, country, xhat=np.arange(0,100)):
     while len(that)<len(xhat):
         that = np.append(that,that[-1]+np.timedelta64(1,'D'))
     
-    return {'x':x, 'y':y, 't':t, 'xhat':xhat, 'that':that, 'dy':dy}    
+    return {
+            'data':{'x':x, 'y':y, 't':t, 'dy':dy}, 
+            'fit':{'x':xhat, 't':that}
+            }
 
-#%% 
 def fit(df, data_label=None, countries=['Sweden'], p0=None):
+    output = {} 
+    for n,country in enumerate(countries):
+        # Data preperation for fit
+        output[country] = prepare(df,country)
+        try:
+            # Logistic function fit (i.e. cdf of logistic distribution)
+            popt, pcov = curve_fit(logistic_mdl, output[country]['data']['x'], output[country]['data']['y'], p0=p0)
+            output[country]['fit']['y'] = logistic_mdl(output[country]['fit']['x'], *popt) 
+            output[country]['mdl'] = {'fun':logistic_mdl, 'p':popt}
+        except:
+            output[country]['fit']['yhat'] = []
+            output[country]['mdl'] = {'fun':logistic_mdl, 'p':[]}
+            print('Error fitting '+country)
+        
+    return output
+
+def plot(mfit, data_label=None, countries=None):
+    
+    if countries is None or len(countries)==0:
+        countries = mfit.keys()
+    
     # Init plot
     Nc = len(countries)
     nax = (2,Nc)    
     fig, axes = plt.subplots(nrows=nax[0], ncols=nax[1])
      
-    output = {} 
     for n,country in enumerate(countries):
-        # Data preperation for fit
-        data = prepare(df,country)
-        
         # Plot data
         plt.subplot(nax[0],nax[1],n+1)
-        plt.plot(data['t'], data['y'], '-', label='data')
+        plt.plot(mfit[country]['data']['t'], mfit[country]['data']['y'], '-', label='data')
         plt.ylabel(data_label)
        
-        try:
-            # Logistic function fit (i.e. cdf of logistic distribution)
-            popt, pcov = curve_fit(logistic_mdl, data['x'], data['y'], p0=p0)
-            data['yhat'] = logistic_mdl(data['xhat'], *popt)
-            
-            plt.plot(data['that'], data['yhat'], 'r--', 
-                     label='logistic fit (speed=%5.2f)'%popt[0])
-        
-        except:
-            print('Error fitting '+country)
+        popt = mfit[country]['mdl']['p']
+        if len(popt)>0:
+            plt.plot(mfit[country]['fit']['t'], mfit[country]['fit']['y'], 'r--', 
+                    label='logistic fit (speed=%5.2f)'%popt[0])
         
         plt.legend()  
         plt.title(country)
         
-        output[country] = {
-                'data':data,
-                'mdl':{
-                        'fun':logistic_mdl,
-                        'p':popt
-                        }
-                }
-    
-    # Ploting per day and logistic pdf
-    for n,country in enumerate(countries):
-        data = output[country]['data']
-        popt = output[country]['mdl']['p']
         
         # Plot cases per day
         plt.subplot(nax[0],nax[1],n+1+Nc)
-        plt.bar(data['t'], data['dy'], label='data')
+        plt.bar(mfit[country]['data']['t'], mfit[country]['data']['dy'], label='data')
         plt.ylabel(data_label+' per day')
         
         # Plot logistic pdf
-        dyhat = popt[2]*stats.logistic.pdf(data['xhat'],loc=popt[1],scale=popt[0])
-        plt.plot(data['that'], dyhat, 'r--', label='fit (logistic pdf)')
+        if len(popt)>0:
+            dyhat = popt[2]*stats.logistic.pdf(mfit[country]['fit']['x'],loc=popt[1],scale=popt[0])
+            plt.plot(mfit[country]['fit']['t'], dyhat, 'r--', label='fit (logistic pdf)')
         
         plt.legend()
-    
-    return output
-         
+
     #%%
 #countries = ['ChinaHubei','Italy','Spain','France','US','United Kingdom']
 #countries = ['Italy','Germany','Finland','Norway','Denmark','Sweden']
 countries=['Sweden','Italy']
 
-#m = fit(df_cases, data_label='Confirmed cases', countries=countries, p0=[5,50,10000])
-m = fit(df_deaths, data_label='Deaths', countries=countries, p0=[5,20,2000])
+#m = fit(df_cases, countries=countries, p0=[5,50,20000])
+m = fit(df_deaths, countries=countries, p0=[5,30,2000])
+plot(m,data_label='Deaths')
+
 #plt.savefig('Deathplot.png')
+
+
