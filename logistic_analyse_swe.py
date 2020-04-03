@@ -17,6 +17,7 @@ url = 'https://www.arcgis.com/sharing/rest/content/items/b5e7488e117749c19881cce
 df_cases = pd.read_excel(url,sheet_name=0)
 df_cases.index = pd.to_datetime(df_cases['Statistikdatum'])
 last_update = pd.to_datetime(df_cases['Statistikdatum'][-1])
+print(last_update)
 del df_cases['Statistikdatum']
 
 df_deaths = pd.read_excel(url,sheet_name=1)
@@ -29,14 +30,28 @@ df_iva.index = pd.to_datetime(df_iva['Datum_vårdstart'])
 df_iva.loc[:,'Antal_intensivvårdade'].fillna(0,inplace=True)  
 del df_iva['Datum_vårdstart']
 
+# Merge to one dataframe
+df_cases.index.name = 'Datum'
+df_deaths.index.name = 'Datum'
+df_iva.index.name = 'Datum'
+df = df_cases
+df[df_deaths.columns[0]] = df_deaths.iloc[:,0]
+df[df_iva.columns[0]] = df_iva.iloc[:,0]
+
+# Replace missing values with zero
+df.fillna(0,inplace=True)  
+
+#set x=0 when first case is reported
+is_cases = df['Totalt_antal_fall'].cumsum().values>0
+# exclude last date
+valid_cases = np.logical_and(is_cases,df.index<last_update)
 
 
 #%% Plot selected countries
-fig,axes = plt.subplots(nrows=2,ncols=2)
-df_cases.loc[:,'Totalt_antal_fall'].cumsum().plot(ax=axes[0,0],title='Antal fall')
-df_deaths.loc[:,'Antal_avlidna'].cumsum().plot(ax=axes[1,0],title='Antal avlidna')
-df_cases.loc[:,'Totalt_antal_fall'].plot(ax=axes[0,1],title='Antal fall per dag')
-df_deaths.loc[:,'Antal_avlidna'].plot(ax=axes[1,1],title='Antal avlidna per dag')
+fig,axes = plt.subplots(nrows=2,ncols=1)
+cols = ['Totalt_antal_fall','Antal_avlidna','Antal_intensivvårdade']
+df.loc[:,cols].cumsum().plot(ax=axes[0],title='Antal')
+df.loc[:,cols].plot(ax=axes[1],title='Antal per dag')
 
     
 
@@ -58,9 +73,8 @@ def prepare(df, col, xhat=np.arange(0,100)):
         ys = df.iloc[:,col].cumsum()
         dys = df.iloc[:,col]
     
-    # set x=0 when first case is reported
-    #i = np.where(np.logical_and(ys.values>0,np.isfinite(x0)))[0]
-    i = np.where(np.logical_and(ys.values>0,df.index<last_update))[0]    
+    # set x=0 when first case is reported and exclude last date    
+    i = np.where(valid_cases)[0]    
     y = ys.values[i]
     dy = dys.values[i]
     
@@ -71,67 +85,74 @@ def prepare(df, col, xhat=np.arange(0,100)):
     while len(that)<len(xhat):
         that = np.append(that,that[-1]+np.timedelta64(1,'D'))
     
-    return {'x':x, 'y':y, 't':t, 'xhat':xhat, 'that':that, 'dy':dy}    
+    return {
+            'data':{'x':x, 'y':y, 't':t, 'dy':dy}, 
+            'fit':{'x':xhat, 't':that}
+            }    
 
 #%% 
-def fit(df, data_label=None, cols=[0], p0=None):
-    # Init plot
-    Nc = len(cols)
-    nax = (2,Nc)    
-    fig, axes = plt.subplots(nrows=nax[0], ncols=nax[1])
-         
-    output = {}     
-        
+def fit(df, data_label=None, cols=[0], p0=None):    
+    output = {}               
     for n,col in enumerate(cols):
         # Data preperation for fit
-        data = prepare(df,col)
+        output[col] = prepare(df,col)
         
-        # Plot data
-        plt.subplot(nax[0],nax[1],n+1)
-        plt.plot(data['t'], data['y'], '-', label='data')
-        plt.ylabel(data_label)
-       
         try:
             # Logistic function fit (i.e. cdf of logistic distribution)
-            popt, pcov = curve_fit(logistic_mdl, data['x'], data['y'], p0=p0)
-            data['yhat'] = logistic_mdl(data['xhat'], *popt)
-            
-            plt.plot(data['that'], data['yhat'], 'r--', 
-                     label='logistic fit (speed=%5.2f)'%popt[0])
-        
+            popt, pcov = curve_fit(logistic_mdl, output[col]['data']['x'], output[col]['data']['y'], p0=p0)
+            output[col]['fit']['y'] = logistic_mdl(output[col]['fit']['x'], *popt) 
+            output[col]['mdl'] = {'fun':logistic_mdl, 'p':popt}                        
         except:
-            print('Error fitting'+col)
+            print('Error fitting'+col)            
         
-        plt.legend()        
-        
-        output[col] = {
-                'data':data,
-                'mdl':{
-                        'fun':logistic_mdl,
-                        'p':popt
-                        }
-                }
-    
-    # Ploting per day and logistic pdf
-    for n,col in enumerate(cols):
-        data = output[col]['data']
+    # Per day and logistic pdf    
+    for n,col in enumerate(cols):        
+        # logistic pdf        
         popt = output[col]['mdl']['p']
-        
-        # Plot cases per day
-        plt.subplot(nax[0],nax[1],n+1+Nc)
-        plt.bar(data['t'], data['dy'], label='data')
-        plt.ylabel(data_label+' per dag')
-        
-        # Plot logistic pdf
-        dyhat = popt[2]*stats.logistic.pdf(data['xhat'],loc=popt[1],scale=popt[0])
-        plt.plot(data['that'], dyhat, 'r--', label='fit (logistic pdf)')
-        
-        plt.legend()
-    
+        output[col]['fit']['dy'] = popt[2]*stats.logistic.pdf(output[col]['fit']['x'],loc=popt[1],scale=popt[0])
+                
     return output
-         
+  
 #%%
-m = fit(df_cases, data_label='Fall', cols=[0], p0=[5,50,10000])
-m = fit(df_deaths, data_label='Avlidna', cols=[0], p0=[5,20,2000])
-m = fit(df_iva, data_label='IVA', cols=[0])
-#plt.savefig('Deathplot.png')
+m_1 = fit(df, data_label='Antal fall', cols=['Totalt_antal_fall'], p0=[5,50,10000])
+m_2 = fit(df, data_label='Antal', cols=['Antal_avlidna','Antal_intensivvårdade'], p0=[5,20,2000])
+m = {**m_1,**m_2} 
+#plt.savefig('Deathplot_swe.png')
+
+#%% plot
+# Init plot
+fig,axes = plt.subplots(nrows=2,ncols=1)
+         
+colors = ['C0','C1','C2','C3','C4','C5','C6']
+# Plot data  
+ax11 = plt.subplot(211)  
+for col in ['Totalt_antal_fall']: 
+    plt.plot(m[col]['data']['t'], m[col]['data']['y'], colors[0]+':.', label=col)         
+    plt.plot(m[col]['fit']['t'], m[col]['fit']['y'], colors[1]+'-',label=col+' logistic fit')    
+    plt.ylabel('Antal')
+    plt.legend(loc=2)
+ax12 = ax11.twinx()
+for n,col in enumerate(['Antal_avlidna','Antal_intensivvårdade']): 
+    plt.plot(m[col]['data']['t'], m[col]['data']['y'], colors[2*n+2]+':.', label=col) 
+    plt.plot(m[col]['fit']['t'], m[col]['fit']['y'], colors[2*n+3]+'-',label=col+' logistic fit')  
+    plt.ylabel('Antal')
+    plt.legend(loc=4)
+
+    
+ax21 = plt.subplot(212)  
+for col in ['Totalt_antal_fall']: 
+    plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[0]+':.', label=col)         
+    plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[1]+'-',label=col+' logistic fit')          
+    plt.ylabel('Antal per dag')
+    plt.legend(loc=2)
+ax22 = ax21.twinx()
+for n,col in enumerate(['Antal_avlidna','Antal_intensivvårdade']): 
+    plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[2*n+2]+':.', label=col) 
+    plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[2*n+3]+'-',label=col+' logistic fit')               
+    plt.ylabel('Antal per dag')
+    plt.legend(loc=1)
+
+# 
+#plt.bar(data['t']-np.timedelta64(6,'h'), data['dy'], width, color=color, label=col)
+#plt.bar(data['t']+np.timedelta64(6,'h'), data['dy'], width, color=color, label=col)
+#plt.legend()
