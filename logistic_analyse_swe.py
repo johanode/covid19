@@ -17,8 +17,10 @@ import os
 url = 'https://www.arcgis.com/sharing/rest/content/items/b5e7488e117749c19881cce45db13f7e/data'
 xl = pd.ExcelFile(url)
 
+print(xl.sheet_names[-1])
+
 # Save local
-i_would_like_to_save_data_to_local_file = 'yes' #(yes/no)
+i_would_like_to_save_data_to_local_file = 'no' #(yes/no)
 filepath = 'data/'
 if i_would_like_to_save_data_to_local_file.lower() == 'yes':
     filename = xl.sheet_names[-1]+'.xlsx'
@@ -39,7 +41,6 @@ if i_would_like_to_save_data_to_local_file.lower() == 'yes':
 df_cases = xl.parse('Antal per dag region') #pd.read_excel(url,sheet_name=0)
 df_cases.index = pd.to_datetime(df_cases['Statistikdatum'])
 last_update = pd.to_datetime(df_cases['Statistikdatum'][-1])
-print(last_update)
 del df_cases['Statistikdatum']
 
 df_deaths = xl.parse('Antal avlidna per dag') #pd.read_excel(url,sheet_name=1)
@@ -69,7 +70,7 @@ df.fillna(0,inplace=True)
 # and exclude last date
 valid_cases ={col: np.logical_and(df[col].cumsum().values>0,df.index<last_update) for col in df.keys()}
 
-#%% Plot selected countries
+#%% Plot selected columns
 fig,axes = plt.subplots(nrows=2,ncols=1)
 cols = ['Totalt_antal_fall','Antal_avlidna','Antal_intensivvårdade']
 df.loc[:,cols].cumsum().plot(ax=axes[0],title='Antal')
@@ -112,7 +113,6 @@ def prepare(df, col, xhat=np.arange(0,100)):
             'fit':{'x':xhat, 't':that}
             }    
 
-#%% 
 def fit(df, data_label=None, cols=[0], p0=None):    
     output = {}               
     for n,col in enumerate(cols):
@@ -138,7 +138,7 @@ def fit(df, data_label=None, cols=[0], p0=None):
   
 #%% Fit logistic model and save to dataframe
 m_1 = fit(df, data_label='Antal fall', cols=df.keys(), p0=[5,50,10000]) #['Totalt_antal_fall']
-m_2 = fit(df, data_label='Antal', cols=['Antal_avlidna','Antal_intensivvårdade'], p0=[5,20,2000])
+m_2 = fit(df, data_label='Antal', cols=['Antal_avlidna','Antal_intensivvårdade'], p0=[4.55346113e+00, 7.73342047e+01, 8.82173825e+03]) #[4,50,1000]
 m = {**m_1,**m_2} 
 
 #%% plot
