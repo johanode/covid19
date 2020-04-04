@@ -16,7 +16,26 @@ import os
 #%% Read sweden
 url = 'https://www.arcgis.com/sharing/rest/content/items/b5e7488e117749c19881cce45db13f7e/data'
 xl = pd.ExcelFile(url)
+
+# Save local
+i_would_like_to_save_data_to_local_file = 'yes' #(yes/no)
+filepath = 'data/'
+if i_would_like_to_save_data_to_local_file.lower() == 'yes':
+    filename = xl.sheet_names[-1]+'.xlsx'
+    file_exist = os.path.isfile(filepath+filename)
+    if file_exist:
+        do_write=input('File "%s" exist, overwrite (yes/no)?' % filename)
     
+    if not file_exist or 'y' in do_write:
+        if not os.path.exists(filepath):
+            os.mkdir(filepath)
+        print('Writing '+filename)
+        with pd.ExcelWriter(filepath+filename) as writer:
+            for sheet in xl.sheet_names:
+                df = xl.parse(sheet)
+                df.to_excel(writer, sheet_name=sheet, index=False)
+                
+
 df_cases = xl.parse('Antal per dag region') #pd.read_excel(url,sheet_name=0)
 df_cases.index = pd.to_datetime(df_cases['Statistikdatum'])
 last_update = pd.to_datetime(df_cases['Statistikdatum'][-1])
@@ -33,22 +52,6 @@ df_iva.index = pd.to_datetime(df_iva['Datum_vårdstart'])
 df_iva.loc[:,'Antal_intensivvårdade'].fillna(0,inplace=True)  
 del df_iva['Datum_vårdstart']
 
-# Save local
-i_would_like_to_save_a_file_locally = 'yes' #(yes/no)
-filepath = 'data/'
-if i_would_like_to_save_a_file_locally.lower == 'yes':
-    filename = xl.sheet_names[-1]+'.xlsx'
-    file_exist = os.path.isfile(filepath+filename)
-    if file_exist:
-        do_write=input('File "%s" exist, overwrite? (yes/no)' % filename)
-    
-    if file_exist or 'y' in do_write:
-        if not os.path.exists(filepath):
-            os.mkdir(filepath)
-        with pd.ExcelWriter(filepath+filename) as writer:
-            for sheet in xl.sheet_names[0:-1]:
-                df = xl.parse(sheet)
-                df.to_excel(writer, sheet_name=sheet)
 xl.close()
 
 #%% Merge to one dataframe
@@ -133,11 +136,10 @@ def fit(df, data_label=None, cols=[0], p0=None):
                 
     return output
   
-#%%
+#%% Fit logistic model and save to dataframe
 m_1 = fit(df, data_label='Antal fall', cols=df.keys(), p0=[5,50,10000]) #['Totalt_antal_fall']
 m_2 = fit(df, data_label='Antal', cols=['Antal_avlidna','Antal_intensivvårdade'], p0=[5,20,2000])
 m = {**m_1,**m_2} 
-#plt.savefig('Deathplot_swe.png')
 
 #%% plot
 cols = ['Totalt_antal_fall']
@@ -172,7 +174,4 @@ for n,col in enumerate(['Antal_avlidna','Antal_intensivvårdade']):
     plt.ylabel('Antal per dag')
     plt.legend(loc=1)
 
-# 
-#plt.bar(data['t']-np.timedelta64(6,'h'), data['dy'], width, color=color, label=col)
-#plt.bar(data['t']+np.timedelta64(6,'h'), data['dy'], width, color=color, label=col)
-#plt.legend()
+#plt.savefig('Deathplot_swe.png')
