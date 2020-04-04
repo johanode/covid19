@@ -110,51 +110,83 @@ def fit(df, data_label=None, countries=['Sweden'], p0=None):
         
     return output
 
-def plot(mfit, data_label=None, countries=None):
+def plot(mfit, data_label=None, countries=None, subplot=False):
     
     if countries is None or len(countries)==0:
         countries = mfit.keys()
     
-    # Init plot
+    # Init plot    
     Nc = len(countries)
-    nax = (2,Nc)    
+    if subplot:
+        nax = (2,Nc)    
+    else:
+        nax = (2,1)
+    
     fig, axes = plt.subplots(nrows=nax[0], ncols=nax[1])
      
-    for n,country in enumerate(countries):
-        # Plot data
-        plt.subplot(nax[0],nax[1],n+1)
-        plt.plot(mfit[country]['data']['t'], mfit[country]['data']['y'], '-', label='data')
-        plt.ylabel(data_label)
-       
-        popt = mfit[country]['mdl']['p']
-        if len(popt)>0:
-            plt.plot(mfit[country]['fit']['t'], mfit[country]['fit']['y'], 'r--', 
-                    label='logistic fit (speed=%5.2f)'%popt[0])
+    if subplot:
+        for n,country in enumerate(countries):
+            # Plot data
+            
+            plt.subplot(nax[0],nax[1],n+1)
+                
+            plt.plot(mfit[country]['data']['t'], mfit[country]['data']['y'], '-', label='data')
+            plt.ylabel(data_label)
+           
+            popt = mfit[country]['mdl']['p']
+            if len(popt)>0:
+                plt.plot(mfit[country]['fit']['t'], mfit[country]['fit']['y'], 'r--', 
+                        label='logistic fit (speed=%5.2f)'%popt[0])
+            
+            plt.legend()  
+            plt.title(country)
+            
+            
+            # Plot cases per day           
+            plt.subplot(nax[0],nax[1],n+1+Nc)
+            plt.bar(mfit[country]['data']['t'], mfit[country]['data']['dy'], label='data')
+            plt.ylabel(data_label+' per day')
+            
+            # Plot logistic pdf
+            if len(popt)>0:
+                dyhat = popt[2]*stats.logistic.pdf(mfit[country]['fit']['x'],loc=popt[1],scale=popt[0])
+                plt.plot(mfit[country]['fit']['t'], dyhat, 'r--', label='fit (logistic pdf)')
+            
+            plt.legend()
+    else:
+        plt.subplot(211)
+        for n,country in enumerate(countries):
+            # Plot data                                 
+            plt.plot(mfit[country]['data']['t'], mfit[country]['data']['y'], '.:', label=country)
+            plt.ylabel(data_label)
+           
+            popt = mfit[country]['mdl']['p']
+            if len(popt)>0:
+                plt.plot(mfit[country]['fit']['t'], mfit[country]['fit']['y'], '--', 
+                        label=country+' fit (speed=%5.2f)'%popt[0])            
+        plt.legend()        
         
-        plt.legend()  
-        plt.title(country)
-        
-        
-        # Plot cases per day
-        plt.subplot(nax[0],nax[1],n+1+Nc)
-        plt.bar(mfit[country]['data']['t'], mfit[country]['data']['dy'], label='data')
-        plt.ylabel(data_label+' per day')
-        
-        # Plot logistic pdf
-        if len(popt)>0:
-            dyhat = popt[2]*stats.logistic.pdf(mfit[country]['fit']['x'],loc=popt[1],scale=popt[0])
-            plt.plot(mfit[country]['fit']['t'], dyhat, 'r--', label='fit (logistic pdf)')
-        
+        plt.subplot(212)
+        for n,country in enumerate(countries):
+            # Plot cases per day           
+            plt.plot(mfit[country]['data']['t'], mfit[country]['data']['dy'], '.:',label=country)
+            plt.ylabel(data_label+' per day')
+            
+            # Plot logistic pdf
+            if len(popt)>0:
+                dyhat = popt[2]*stats.logistic.pdf(mfit[country]['fit']['x'],loc=popt[1],scale=popt[0])
+                plt.plot(mfit[country]['fit']['t'], dyhat, '--', label='fit (logistic pdf)')    
         plt.legend()
 
     #%%
 #countries = ['ChinaHubei','Italy','Spain','France','US','United Kingdom']
-#countries = ['Italy','Germany','Finland','Norway','Denmark','Sweden']
+#countries = ['Finland','Norway','Denmark','Sweden']
 countries=['Sweden','Italy']
 
-#m = fit(df_cases, countries=countries, p0=[5,50,20000])
-m = fit(df_deaths, countries=countries, p0=[5,30,2000])
-plot(m,data_label='Deaths')
+m = fit(df_cases, countries=countries, p0=[5,50,20000])
+plot(m,data_label='Confired cases',subplot=True)
+md = fit(df_deaths, countries=countries, p0=[5,30,2000])
+plot(md,data_label='Deaths',subplot=True)
 
 #plt.savefig('Deathplot.png')
 
