@@ -11,26 +11,47 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from scipy import stats
+import os
 
 #%% Read sweden
 url = 'https://www.arcgis.com/sharing/rest/content/items/b5e7488e117749c19881cce45db13f7e/data'
-df_cases = pd.read_excel(url,sheet_name=0)
+xl = pd.ExcelFile(url)
+    
+df_cases = xl.parse('Antal per dag region') #pd.read_excel(url,sheet_name=0)
 df_cases.index = pd.to_datetime(df_cases['Statistikdatum'])
 last_update = pd.to_datetime(df_cases['Statistikdatum'][-1])
 print(last_update)
 del df_cases['Statistikdatum']
 
-df_deaths = pd.read_excel(url,sheet_name=1)
+df_deaths = xl.parse('Antal avlidna per dag') #pd.read_excel(url,sheet_name=1)
 df_deaths.iloc[df_deaths['Datum_avliden'].values=='Uppgift saknas',0]=''
 df_deaths.index = pd.to_datetime(df_deaths['Datum_avliden'])
 del df_deaths['Datum_avliden']
 
-df_iva = pd.read_excel(url,sheet_name=2)
+df_iva = xl.parse('Antal intensivvårdade per dag') #pd.read_excel(url,sheet_name=2)
 df_iva.index = pd.to_datetime(df_iva['Datum_vårdstart'])
 df_iva.loc[:,'Antal_intensivvårdade'].fillna(0,inplace=True)  
 del df_iva['Datum_vårdstart']
 
-# Merge to one dataframe
+# Save local
+i_would_like_to_save_a_file_locally = 'yes' #(yes/no)
+filepath = 'data/'
+if i_would_like_to_save_a_file_locally.lower == 'yes':
+    filename = xl.sheet_names[-1]+'.xlsx'
+    file_exist = os.path.isfile(filepath+filename)
+    if file_exist:
+        do_write=input('File "%s" exist, overwrite? (yes/no)' % filename)
+    
+    if file_exist or 'y' in do_write:
+        if not os.path.exists(filepath):
+            os.mkdir(filepath)
+        with pd.ExcelWriter(filepath+filename) as writer:
+            for sheet in xl.sheet_names[0:-1]:
+                df = xl.parse(sheet)
+                df.to_excel(writer, sheet_name=sheet)
+xl.close()
+
+#%% Merge to one dataframe
 df_cases.index.name = 'Datum'
 df_deaths.index.name = 'Datum'
 df_iva.index.name = 'Datum'
@@ -41,11 +62,9 @@ df[df_iva.columns[0]] = df_iva.iloc[:,0]
 # Replace missing values with zero
 df.fillna(0,inplace=True)  
 
-#set x=0 when first case is reported
-is_cases = df['Totalt_antal_fall'].cumsum().values>0
-# exclude last date
-valid_cases = np.logical_and(is_cases,df.index<last_update)
-
+# set x=0 when first case is reported
+# and exclude last date
+valid_cases ={col: np.logical_and(df[col].cumsum().values>0,df.index<last_update) for col in df.keys()}
 
 #%% Plot selected countries
 fig,axes = plt.subplots(nrows=2,ncols=1)
@@ -74,7 +93,7 @@ def prepare(df, col, xhat=np.arange(0,100)):
         dys = df.iloc[:,col]
     
     # set x=0 when first case is reported and exclude last date    
-    i = np.where(valid_cases)[0]    
+    i = np.where(valid_cases[col])[0]
     y = ys.values[i]
     dy = dys.values[i]
     
@@ -102,31 +121,32 @@ def fit(df, data_label=None, cols=[0], p0=None):
             popt, pcov = curve_fit(logistic_mdl, output[col]['data']['x'], output[col]['data']['y'], p0=p0)
             output[col]['fit']['y'] = logistic_mdl(output[col]['fit']['x'], *popt) 
             output[col]['mdl'] = {'fun':logistic_mdl, 'p':popt}                        
+            
+            # Per day and logistic pdf          
+            # logistic pdf                    
+            output[col]['fit']['dy'] = popt[2]*stats.logistic.pdf(output[col]['fit']['x'],loc=popt[1],scale=popt[0])
         except:
-            print('Error fitting'+col)            
-        
-    # Per day and logistic pdf    
-    for n,col in enumerate(cols):        
-        # logistic pdf        
-        popt = output[col]['mdl']['p']
-        output[col]['fit']['dy'] = popt[2]*stats.logistic.pdf(output[col]['fit']['x'],loc=popt[1],scale=popt[0])
+            output[col]['fit']['y'] = []
+            output[col]['fit']['dy'] = []
+            output[col]['mdl'] = {'fun':logistic_mdl, 'p':[]}
+            print('Error fitting'+col)                        
                 
     return output
   
 #%%
-m_1 = fit(df, data_label='Antal fall', cols=['Totalt_antal_fall'], p0=[5,50,10000])
+m_1 = fit(df, data_label='Antal fall', cols=df.keys(), p0=[5,50,10000]) #['Totalt_antal_fall']
 m_2 = fit(df, data_label='Antal', cols=['Antal_avlidna','Antal_intensivvårdade'], p0=[5,20,2000])
 m = {**m_1,**m_2} 
 #plt.savefig('Deathplot_swe.png')
 
 #%% plot
+cols = ['Totalt_antal_fall']
 # Init plot
 fig,axes = plt.subplots(nrows=2,ncols=1)
-         
 colors = ['C0','C1','C2','C3','C4','C5','C6']
 # Plot data  
 ax11 = plt.subplot(211)  
-for col in ['Totalt_antal_fall']: 
+for col in cols: 
     plt.plot(m[col]['data']['t'], m[col]['data']['y'], colors[0]+':.', label=col)         
     plt.plot(m[col]['fit']['t'], m[col]['fit']['y'], colors[1]+'-',label=col+' logistic fit')    
     plt.ylabel('Antal')
@@ -140,7 +160,7 @@ for n,col in enumerate(['Antal_avlidna','Antal_intensivvårdade']):
 
     
 ax21 = plt.subplot(212)  
-for col in ['Totalt_antal_fall']: 
+for col in cols: 
     plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[0]+':.', label=col)         
     plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[1]+'-',label=col+' logistic fit')          
     plt.ylabel('Antal per dag')
