@@ -38,16 +38,23 @@ if i_would_like_to_save_data_to_local_file.lower() == 'yes':
                 df.to_excel(writer, sheet_name=sheet, index=False)
                 
 
+# Confirmed cases
 df_cases = xl.parse('Antal per dag region') #pd.read_excel(url,sheet_name=0)
 df_cases.index = pd.to_datetime(df_cases['Statistikdatum'])
 last_update = pd.to_datetime(df_cases['Statistikdatum'][-1])
 del df_cases['Statistikdatum']
+# Replace missing values with zero
+df_cases.fillna(0,inplace=True)  
+# set x=0 when first case is reported and exclude last date
+valid_cases ={col: np.logical_and(df_cases[col].cumsum().values>0,df_cases.index<last_update) for col in df_cases.keys()}
 
+# Deaths
 df_deaths = xl.parse('Antal avlidna per dag') #pd.read_excel(url,sheet_name=1)
 df_deaths.iloc[df_deaths['Datum_avliden'].values=='Uppgift saknas',0]=''
 df_deaths.index = pd.to_datetime(df_deaths['Datum_avliden'])
 del df_deaths['Datum_avliden']
 
+# Intesive care
 df_iva = xl.parse('Antal intensivvårdade per dag') #pd.read_excel(url,sheet_name=2)
 df_iva.index = pd.to_datetime(df_iva['Datum_vårdstart'])
 df_iva.loc[:,'Antal_intensivvårdade'].fillna(0,inplace=True)  
@@ -59,24 +66,35 @@ xl.close()
 df_cases.index.name = 'Datum'
 df_deaths.index.name = 'Datum'
 df_iva.index.name = 'Datum'
-df = df_cases
+df = df_cases.copy()
 df[df_deaths.columns[0]] = df_deaths.iloc[:,0]
 df[df_iva.columns[0]] = df_iva.iloc[:,0]
-
-# Replace missing values with zero
 df.fillna(0,inplace=True)  
 
-# set x=0 when first case is reported
-# and exclude last date
-valid_cases ={col: np.logical_and(df[col].cumsum().values>0,df.index<last_update) for col in df.keys()}
 
 #%% Plot selected columns
-fig,axes = plt.subplots(nrows=2,ncols=1)
+fig,axes = plt.subplots(nrows=3,ncols=1)
 cols = ['Totalt_antal_fall','Antal_avlidna','Antal_intensivvårdade']
 df.loc[:,cols].cumsum().plot(ax=axes[0],title='Antal')
 df.loc[:,cols].plot(ax=axes[1],title='Antal per dag')
+#cols = [x for x in df.columns if x not in cols]
+cols = ['Stockholm','Västra_Götaland','Skåne','Norrbotten']
+df.loc[:,cols].cumsum().plot(ax=axes[2],title='Antal')
 
-    
+#%%
+population ={
+        'Norrbotten' : 250093,
+        'Skåne' : 1377827,
+        'Västra_Götaland' : 1725881,
+        'Stockholm' : 2377081
+        }
+
+fig,axes = plt.subplots(nrows=1,ncols=1)
+for col in list(population.keys()):
+    s = df.loc[:,col].cumsum()/population[col]*100e3
+    s.plot(ax=axes)    
+plt.ylabel('Case per 100k')
+plt.legend()
 
 #%% SUBFUNCTIONS
 def logistic_mdl(x,a,b,c):
@@ -96,8 +114,11 @@ def prepare(df, col, xhat=np.arange(0,100)):
         ys = df.iloc[:,col].cumsum()
         dys = df.iloc[:,col]
     
-    # set x=0 when first case is reported and exclude last date    
-    i = np.where(valid_cases[col])[0]
+    # set x=0 when first case is reported and exclude last date 
+    if col in valid_cases.keys():
+        i = np.where(valid_cases[col])[0]
+    else:
+        i = np.where(valid_cases['Totalt_antal_fall'])[0]
     y = ys.values[i]
     dy = dys.values[i]
     
@@ -137,7 +158,7 @@ def fit(df, data_label=None, cols=[0], p0=None):
     return output
   
 #%% Fit logistic model and save to dataframe
-m_1 = fit(df, data_label='Antal fall', cols=df.keys(), p0=[5,50,10000]) #['Totalt_antal_fall']
+m_1 = fit(df, data_label='Antal fall', cols=['Totalt_antal_fall'], p0=[5,50,10000]) 
 m_2 = fit(df, data_label='Antal', cols=['Antal_avlidna','Antal_intensivvårdade'], p0=[4.55346113e+00, 7.73342047e+01, 8.82173825e+03]) #[4,50,1000]
 m = {**m_1,**m_2} 
 
