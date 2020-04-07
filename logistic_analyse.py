@@ -56,10 +56,11 @@ for country in df_cases.columns:
 countries = ['Italy','Spain','US','France','Germany','Finland','Norway','Denmark','Sweden']
 
 fig,axes = plt.subplots(nrows=2,ncols=2)
-df_cases.loc[:,countries].plot(ax=axes[0,0],title='Confirmed cases')
-df_deaths.loc[:,countries].plot(ax=axes[1,0],title='Deaths')
-df_cases.loc[:,countries].diff().plot(ax=axes[0,1],title='Confirmed new cases')
-df_deaths.loc[:,countries].diff().plot(ax=axes[1,1],title='New deaths')
+logy=[True,True,False,False]
+df_cases.loc[:,countries].plot(ax=axes[0,0],logy=logy[0],title='Confirmed cases')
+df_deaths.loc[:,countries].plot(ax=axes[1,0],logy=logy[1],title='Deaths')
+df_cases.loc[:,countries].diff().plot(ax=axes[0,1],logy=logy[2],title='Confirmed new cases')
+df_deaths.loc[:,countries].diff().plot(ax=axes[1,1],logy=logy[3],title='New deaths')
 
 
 #%% SUBFUNCTIONS
