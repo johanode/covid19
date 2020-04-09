@@ -42,7 +42,8 @@ if i_would_like_to_save_data_to_local_file.lower() == 'yes':
 df_cases = xl.parse('Antal per dag region') #pd.read_excel(url,sheet_name=0)
 df_cases.index = pd.to_datetime(df_cases['Statistikdatum'])
 last_update = pd.to_datetime(df_cases['Statistikdatum'][-1])
-del df_cases['Statistikdatum']
+df_cases.drop(['Statistikdatum'],axis=1,inplace=True)
+
 # Replace missing values with zero
 df_cases.fillna(0,inplace=True)  
 # set x=0 when first case is reported and exclude last date
@@ -50,15 +51,15 @@ valid_cases ={col: np.logical_and(df_cases[col].cumsum().values>0,df_cases.index
 
 # Deaths
 df_deaths = xl.parse('Antal avlidna per dag') #pd.read_excel(url,sheet_name=1)
-df_deaths.iloc[df_deaths['Datum_avliden'].values=='Uppgift saknas',0]=''
+df_deaths.iloc[[isinstance(d,str) and 'saknas' in d for d in df_deaths['Datum_avliden'].values],0]=''
 df_deaths.index = pd.to_datetime(df_deaths['Datum_avliden'])
-del df_deaths['Datum_avliden']
+df_deaths.drop(['Datum_avliden'],axis=1,inplace=True)
 
 # Intesive care
 df_iva = xl.parse('Antal intensivvårdade per dag') #pd.read_excel(url,sheet_name=2)
 df_iva.index = pd.to_datetime(df_iva['Datum_vårdstart'])
 df_iva.loc[:,'Antal_intensivvårdade'].fillna(0,inplace=True)  
-del df_iva['Datum_vårdstart']
+df_iva.drop(['Datum_vårdstart'],axis=1,inplace=True)
 
 xl.close()
 
