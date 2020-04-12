@@ -20,7 +20,7 @@ xl = pd.ExcelFile(url)
 print(xl.sheet_names[-1])
 
 # Save local
-i_would_like_to_save_data_to_local_file = 'no' #(yes/no)
+i_would_like_to_save_data_to_local_file = 'yes' #(yes/no)
 filepath = 'data/'
 if i_would_like_to_save_data_to_local_file.lower() == 'yes':
     filename = xl.sheet_names[-1]+'.xlsx'
@@ -198,7 +198,7 @@ m = {**m_1,**m_2}
 
 #%% Fit logistic model with fix offset
 cols = ['Antal_intensivvårdade','Antal_avlidna']
-db = [7,7+4]
+db = [5,5+2]
 
 b = np.round(m_1['Totalt_antal_fall']['mdl']['p'][1]+db[0])
 m_b_1 = fit(df, data_label='Antal', cols=cols[0], mdl=logistic_b_mdl, p0=[5, 2500]) 
@@ -207,21 +207,6 @@ b = np.round(m_1['Totalt_antal_fall']['mdl']['p'][1]+db[1])
 m_b_2 = fit(df, data_label='Antal', cols=cols[1], mdl=logistic_b_mdl, p0=[5, 2500]) 
 
 m_b = {**m_b_1,**m_b_2}
-
-#%% Plot logistic model with fix offset
-fig,axes = plt.subplots(nrows=1,ncols=1)
-c = {'db':list(range(0,15))}
-cols = ['Antal_intensivvårdade','Antal_avlidna']
-for col in cols:        
-    c[col]=[]
-    for o in c['db']: #offset from cases        
-        b = np.round(m_1['Totalt_antal_fall']['mdl']['p'][1]+o)
-        m_o = fit(df, data_label='Antal', cols=cols, mdl=logistic_b_mdl, p0=[5, 2500]) 
-        c[col].append(m_o[col]['mdl']['p'][1])
-    plt.plot(c['db'],c[col],label=col)
-plt.legend()
-plt.xlabel('Offset b')
-plt.ylabel('Antal')
 
 
 #%% plot
@@ -260,3 +245,18 @@ for n,col in enumerate(['Antal_intensivvårdade','Antal_avlidna']):
     plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['dy'], colors[3*n+4]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))              
 plt.ylabel('Antal iva/avlidna per dag')
 plt.legend(loc=6)
+
+#%% Plot logistic model with fix offset
+fig,axes = plt.subplots(nrows=1,ncols=1)
+c = {'db':list(range(0,15))}
+cols = ['Antal_intensivvårdade','Antal_avlidna']
+for col in cols:        
+    c[col]=[]
+    for o in c['db']: #offset from cases        
+        b = np.round(m_1['Totalt_antal_fall']['mdl']['p'][1]+o)
+        m_o = fit(df, data_label='Antal', cols=cols, mdl=logistic_b_mdl, p0=[5, 2500]) 
+        c[col].append(m_o[col]['mdl']['p'][1])
+    plt.plot(c['db'],c[col],label=col)
+plt.legend()
+plt.xlabel('Offset b')
+plt.ylabel('Antal')
