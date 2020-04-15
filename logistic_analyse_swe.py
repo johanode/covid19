@@ -248,15 +248,16 @@ plt.legend(loc=6)
 
 #%% Plot logistic model with fix offset
 fig,axes = plt.subplots(nrows=1,ncols=1)
-c = {'db':list(range(0,15))}
+c = {'db':list(range(-7,15))}
 cols = ['Antal_intensivvårdade','Antal_avlidna']
-for col in cols:        
+for n,col in enumerate(cols):        
     c[col]=[]
     for o in c['db']: #offset from cases        
         b = np.round(m_1['Totalt_antal_fall']['mdl']['p'][1]+o)
         m_o = fit(df, data_label='Antal', cols=cols, mdl=logistic_b_mdl, p0=[5, 2500]) 
         c[col].append(m_o[col]['mdl']['p'][1])
-    plt.plot(c['db'],c[col],label=col)
+    plt.plot(c['db'],c[col],colors[n],label=col)
+    plt.plot(c['db'],[m_2[col]['mdl']['p'][2]]*len(c['db']),colors[n]+'--',label=col)
 plt.legend()
 plt.xlabel('Offset b')
 plt.ylabel('Antal')
