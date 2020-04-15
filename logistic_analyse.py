@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from scipy import stats
 
-
 #%% Read JH
 # Data from John Hopkins University
 # https://systems.jhu.edu/
@@ -42,6 +41,20 @@ df_deaths = totimeseries(csv_deaths)
 df_cases = totimeseries(csv_cases)
 
 #%%
+#import sys
+#sys.path.append('C:/Users/Johan/Documents/Python Scripts/worldmeter')
+#from worldmeter import population
+pop = pd.read_csv('Population.csv',sep=';',header=0,index_col=0)
+pop.iloc[pop['Country'].values=='United States',0] = 'US'
+
+df_cases_pop = df_cases.copy()
+df_deaths_pop = df_deaths.copy()
+countries,ia,ib = np.intersect1d(pop.loc[:,'Country'],df_cases.columns,return_indices=True)
+for n in range(len(countries)):
+    df_cases_pop.iloc[:,ib[n]] = df_cases.iloc[:,ib[n]].values/pop['Population'].values[ia[n]]*1000
+    df_deaths_pop.iloc[:,ib[n]] = df_deaths.iloc[:,ib[n]].values/pop['Population'].values[ia[n]]*1000
+    
+#%%
 #set x=0 when first case is reported
 first_day_case = {}
 for country in df_cases.columns:
@@ -61,6 +74,10 @@ df_cases.loc[:,countries].plot(ax=axes[0,0],logy=logy[0],title='Confirmed cases'
 df_deaths.loc[:,countries].plot(ax=axes[1,0],logy=logy[1],title='Deaths')
 df_cases.loc[:,countries].diff().plot(ax=axes[0,1],logy=logy[2],title='Confirmed new cases')
 df_deaths.loc[:,countries].diff().plot(ax=axes[1,1],logy=logy[3],title='New deaths')
+
+fig,axes = plt.subplots(nrows=2,ncols=1)
+df_cases_pop.loc[:,countries].plot(ax=axes[0],title='Confirmed cases per pop')
+df_deaths_pop.loc[:,countries].plot(ax=axes[1],title='Deaths per pop')
 
 
 #%% SUBFUNCTIONS
