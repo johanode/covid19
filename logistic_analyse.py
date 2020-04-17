@@ -51,8 +51,8 @@ df_cases_pop = df_cases.copy()
 df_deaths_pop = df_deaths.copy()
 countries,ia,ib = np.intersect1d(pop.loc[:,'Country'],df_cases.columns,return_indices=True)
 for n in range(len(countries)):
-    df_cases_pop.iloc[:,ib[n]] = df_cases.iloc[:,ib[n]].values/pop['Population'].values[ia[n]]*1000
-    df_deaths_pop.iloc[:,ib[n]] = df_deaths.iloc[:,ib[n]].values/pop['Population'].values[ia[n]]*1000
+    df_cases_pop.iloc[:,ib[n]] = df_cases.iloc[:,ib[n]].values/pop['Population'].values[ia[n]]*100e3
+    df_deaths_pop.iloc[:,ib[n]] = df_deaths.iloc[:,ib[n]].values/pop['Population'].values[ia[n]]*100e3
     
 #%%
 #set x=0 when first case is reported
@@ -76,8 +76,8 @@ df_cases.loc[:,countries].diff().plot(ax=axes[0,1],logy=logy[2],title='Confirmed
 df_deaths.loc[:,countries].diff().plot(ax=axes[1,1],logy=logy[3],title='New deaths')
 
 fig,axes = plt.subplots(nrows=2,ncols=1)
-df_cases_pop.loc[:,countries].plot(ax=axes[0],title='Confirmed cases per pop')
-df_deaths_pop.loc[:,countries].plot(ax=axes[1],title='Deaths per pop')
+df_cases_pop.loc[:,countries].plot(ax=axes[0],title='Confirmed cases per 100k')
+df_deaths_pop.loc[:,countries].plot(ax=axes[1],title='Deaths per 100k')
 
 
 #%% SUBFUNCTIONS
