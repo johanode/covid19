@@ -86,17 +86,21 @@ fig,axes = plt.subplots(nrows=2,ncols=2)
 cols = ['Totalt_antal_fall', 'Stockholm_antal_fall']
 df.loc[:,cols].cumsum().plot(ax=axes[0,0])
 
+df.loc[:,cols].rolling(7).mean().plot(ax=axes[0,1])
+plt.ylabel('Antal per dag (rull=7)')
+
 cols = ['Antal_avlidna','Antal_intensivvårdade']
-df.loc[:,cols].cumsum().plot(ax=axes[0,1])
-
-cols = ['Totalt_antal_fall', 'Antal_avlidna','Antal_intensivvårdade']
-df.loc[:,cols].plot(ax=axes[1,1])
-plt.ylabel('Antal per dag')
-
-#cols = [x for x in df.columns if x not in cols]
-cols = [new_cols[col] for col in ['Västra_Götaland', 'Uppsala', 'Skåne', 'Västerbotten', 'Norrbotten']]
 df.loc[:,cols].cumsum().plot(ax=axes[1,0])
 
+df.loc[:,cols].rolling(7).mean().plot(ax=axes[1,1])
+plt.ylabel('Antal per dag (rull=7)')
+
+fig,axes = plt.subplots(nrows=1,ncols=2)
+#cols = [x for x in df.columns if x not in cols]
+cols = [new_cols[col] for col in ['Västra_Götaland', 'Uppsala', 'Skåne', 'Västerbotten', 'Norrbotten']]
+df.loc[:,cols].cumsum().plot(ax=axes[0])
+df.loc[:,cols].rolling(7).mean().plot(ax=axes[1])
+plt.ylabel('Antal per dag (rull=7)')
 
 #%% Plot selected columns with respect to poulation
 population ={
@@ -106,12 +110,20 @@ population ={
         'Stockholm' : 2377081
         }
 
-fig,axes = plt.subplots(nrows=1,ncols=1)
+fig = plt.figure()
+plt.subplot(211)
 for col in list(population.keys()):
     s = df.loc[:,new_cols[col]].cumsum()/population[col]*100e3
-    s.plot(ax=axes)    
-plt.ylabel('Case per 100k')
+    plt.plot(s.values,label=col)
 plt.legend()
+plt.ylabel('Case per 100k')
+    
+plt.subplot(212)
+for col in list(population.keys()):    
+    s = df.loc[:,new_cols[col]].rolling(7).mean()/population[col]*100e3
+    plt.plot(s.values,label=col) 
+plt.ylabel('Case per day 100k')
+plt.legend()   
 
 #%% SUBFUNCTIONS
 def logistic_mdl(x,a,b,c):
