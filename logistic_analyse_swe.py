@@ -256,7 +256,7 @@ m_b = {**m_b_1,**m_b_2}
 cols = ['Totalt_antal_fall']
 # Init plot
 fig,axes = plt.subplots(nrows=2,ncols=1)
-colors = ['C0','C1','C2','C3','C4','C5','C6','C7']
+colors = ['C0','C1','C2','C3','C4','C5','C6','C7','C8']
 # Plot data  
 ax11 = plt.subplot(211)  
 for col in cols: 
@@ -267,8 +267,8 @@ plt.legend(loc=2)
 
 ax12 = ax11.twinx()
 for n,col in enumerate(['Antal_intensivvårdade','Antal_avlidna']): 
-    plt.plot(m[col]['data']['t'], m[col]['data']['y'], colors[3*n+2]+':.', label=col) 
-    plt.plot(m[col]['fit']['t'], m[col]['fit']['y'], colors[3*n+3]+'-',label=col+' logistic fit')  
+    plt.plot(m[col]['data']['t'], m[col]['data']['y'], colors[3*n+3]+':.', label=col) 
+    plt.plot(m[col]['fit']['t'], m[col]['fit']['y'], colors[3*n+4]+'-',label=col+' logistic fit')  
     #plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['y'], colors[3*n+4]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))
 plt.ylabel('Antal iva/avlidna')
 plt.legend(loc=6)
@@ -277,15 +277,17 @@ plt.legend(loc=6)
 ax21 = plt.subplot(212)  
 for col in cols: 
     plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[0]+':.', label=col)         
-    plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[1]+'-',label=col+' logistic fit')          
+    plt.plot(m[col]['data']['t'], pd.Series(m[col]['data']['dy']).rolling(7).mean().values, colors[1]+'-', label=col) 
+    plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[2]+'--',label=col+' logistic fit')          
 plt.ylabel('Antal fall per dag')
 plt.legend(loc=2)
 
 ax22 = ax21.twinx()
 for n,col in enumerate(['Antal_intensivvårdade','Antal_avlidna']): 
-    plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[3*n+2]+':.', label=col) 
-    plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[3*n+3]+'-',label=col+' logistic fit')               
-    #plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['dy'], colors[3*n+4]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))              
+    plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[3*n+3]+'.:', label=col) 
+    plt.plot(m[col]['data']['t'], pd.Series(m[col]['data']['dy']).rolling(7).mean().values, colors[3*n+4]+'-', label=col) 
+    plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[3*n+5]+'--',label=col+' logistic fit')               
+    #plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['dy'], colors[4*n+5]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))              
 plt.ylabel('Antal iva/avlidna per dag')
 plt.legend(loc=6)
 
