@@ -46,8 +46,6 @@ df_cases.drop(['Statistikdatum'],axis=1,inplace=True)
 
 # Replace missing values with zero
 df_cases.fillna(0,inplace=True)  
-# set x=0 when first case is reported and exclude last date
-valid_cases ={col: np.logical_and(df_cases[col].cumsum().values>0,df_cases.index<last_update) for col in df_cases.keys()}
 
 # Deaths
 df_deaths = xl.parse('Antal avlidna per dag') #pd.read_excel(url,sheet_name=1)
@@ -78,9 +76,15 @@ df[df_iva.columns[0]] = df_iva.iloc[:,0]
 df.fillna(0, inplace=True)  
 
 # Renamce region column names
-new_cols = {col : col+'_antal_fall' for col in df_cases.columns if not 'fall' in col}
+new_cols = {col : col+'_antal_fall' for col in df_cases if not 'fall' in col}
 df.rename(columns=new_cols, inplace=True)
 
+# set x=0 when first case is reported and exclude last date
+for col in df:
+    if 'antal_fall' in col:
+        valid_cases = np.logical_and(df[col].cumsum().values>0,df.index<last_update)
+        df[col.split('_')[0]+'_filter'] = valid_cases
+        
 #%% Plot selected columns
 fig,axes = plt.subplots(nrows=2,ncols=2)
 cols = ['Totalt_antal_fall', 'Stockholm_antal_fall']
@@ -151,10 +155,10 @@ def prepare(df, col, xhat=np.arange(0,100)):
         dys = df.iloc[:,col]
     
     # set x=0 when first case is reported and exclude last date 
-    if col in valid_cases.keys():
-        i = np.where(valid_cases[col])[0]
+    if 'antal_fall' in col:
+        i = np.where(df[col.split('_')[0]+'_filter'])[0]
     else:
-        i = np.where(valid_cases['Totalt_antal_fall'])[0]
+        i = np.where(df['Totalt_filter'])[0]        
     y = ys.values[i]
     dy = dys.values[i]
     
@@ -208,6 +212,33 @@ m_1 = fit(df, data_label='Antal fall', cols=['Totalt_antal_fall'], p0=[5,50,1000
 m_2 = fit(df, data_label='Antal', cols=['Antal_avlidna','Antal_intensivvårdade'], p0=[5, 70, 2000]) #[4,50,1000]
 m = {**m_1,**m_2} 
 
+#%% Fit logistic model for different days
+cols = ['Totalt_antal_fall','Antal_avlidna','Antal_intensivvårdade']
+for r in ['Stockholm','Västra_Götaland', 'Uppsala', 'Skåne', 'Västerbotten', 'Norrbotten']:
+    cols += [new_cols[r]]
+
+yhat = pd.DataFrame()
+t = []
+for dt in range(0,25):
+    d = pd.to_datetime('2020-04-01')+pd.to_timedelta(dt*24*60*60*1e9)
+    if d>=last_update:
+        break
+    t.append(d)
+    print(d.strftime('%Y-%m-%d'))    
+    m_d = fit(df.loc['2020-02-01':d.strftime('%Y-%m-%d')], data_label='Antal', cols=cols, p0=[5, 70, 2000]) #[4,50,1000]
+    for col in cols:
+        if len(m_d[col]['mdl']['p'])>0:
+            yhat.loc[d,col] = m_d[col]['mdl']['p'][2]
+        else:
+            yhat.loc[d,col] = np.nan
+
+#%%
+fig,axes = plt.subplots(nrows=2,ncols=1)
+cols2 = ['Antal_avlidna','Antal_intensivvårdade']
+cols1 = np.setdiff1d(cols,cols2)
+yhat[cols1].plot(ax=axes[0],logy=True)
+yhat[cols2].plot(ax=axes[1])
+
 #%% Fit logistic model with fix offset
 cols = ['Antal_intensivvårdade','Antal_avlidna']
 db = [5,5+2]
@@ -238,7 +269,7 @@ ax12 = ax11.twinx()
 for n,col in enumerate(['Antal_intensivvårdade','Antal_avlidna']): 
     plt.plot(m[col]['data']['t'], m[col]['data']['y'], colors[3*n+2]+':.', label=col) 
     plt.plot(m[col]['fit']['t'], m[col]['fit']['y'], colors[3*n+3]+'-',label=col+' logistic fit')  
-    plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['y'], colors[3*n+4]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))
+    #plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['y'], colors[3*n+4]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))
 plt.ylabel('Antal iva/avlidna')
 plt.legend(loc=6)
 
@@ -254,22 +285,22 @@ ax22 = ax21.twinx()
 for n,col in enumerate(['Antal_intensivvårdade','Antal_avlidna']): 
     plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[3*n+2]+':.', label=col) 
     plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[3*n+3]+'-',label=col+' logistic fit')               
-    plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['dy'], colors[3*n+4]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))              
+    #plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['dy'], colors[3*n+4]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))              
 plt.ylabel('Antal iva/avlidna per dag')
 plt.legend(loc=6)
 
 #%% Plot logistic model with fix offset
-fig,axes = plt.subplots(nrows=1,ncols=1)
-c = {'db':list(range(-7,15))}
-cols = ['Antal_intensivvårdade','Antal_avlidna']
-for n,col in enumerate(cols):        
-    c[col]=[]
-    for o in c['db']: #offset from cases        
-        b = np.round(m_1['Totalt_antal_fall']['mdl']['p'][1]+o)
-        m_o = fit(df, data_label='Antal', cols=cols, mdl=logistic_b_mdl, p0=[5, 2500]) 
-        c[col].append(m_o[col]['mdl']['p'][1])
-    plt.plot(c['db'],c[col],colors[n],label=col)
-    plt.plot(c['db'],[m_2[col]['mdl']['p'][2]]*len(c['db']),colors[n]+'--',label=col)
-plt.legend()
-plt.xlabel('Offset b')
-plt.ylabel('Antal')
+#fig,axes = plt.subplots(nrows=1,ncols=1)
+#c = {'db':list(range(-7,15))}
+#cols = ['Antal_intensivvårdade','Antal_avlidna']
+#for n,col in enumerate(cols):        
+#    c[col]=[]
+#    for o in c['db']: #offset from cases        
+#        b = np.round(m_1['Totalt_antal_fall']['mdl']['p'][1]+o)
+#        m_o = fit(df, data_label='Antal', cols=cols, mdl=logistic_b_mdl, p0=[5, 2500]) 
+#        c[col].append(m_o[col]['mdl']['p'][1])
+#    plt.plot(c['db'],c[col],colors[n],label=col)
+#    plt.plot(c['db'],[m_2[col]['mdl']['p'][2]]*len(c['db']),colors[n]+'--',label=col)
+#plt.legend()
+#plt.xlabel('Offset b')
+#plt.ylabel('Antal')
