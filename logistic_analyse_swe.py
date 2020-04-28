@@ -219,9 +219,9 @@ for r in ['Stockholm','Västra_Götaland', 'Uppsala', 'Skåne', 'Västerbotten',
 
 yhat = pd.DataFrame()
 t = []
-for dt in range(0,25):
+for dt in range(0,50):
     d = pd.to_datetime('2020-04-01')+pd.to_timedelta(dt*24*60*60*1e9)
-    if d>=last_update:
+    if d>last_update:
         break
     t.append(d)
     print(d.strftime('%Y-%m-%d'))    
