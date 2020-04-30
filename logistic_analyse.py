@@ -72,8 +72,8 @@ fig,axes = plt.subplots(nrows=2,ncols=2)
 logy=[True,True,False,False]
 df_cases.loc[:,countries].plot(ax=axes[0,0],logy=logy[0],title='Confirmed cases')
 df_deaths.loc[:,countries].plot(ax=axes[1,0],logy=logy[1],title='Deaths')
-df_cases.loc[:,countries].diff().plot(ax=axes[0,1],logy=logy[2],title='Confirmed new cases')
-df_deaths.loc[:,countries].diff().plot(ax=axes[1,1],logy=logy[3],title='New deaths')
+df_cases.loc[:,countries].diff().rolling(7).mean().plot(ax=axes[0,1],logy=logy[2],title='Confirmed new cases')
+df_deaths.loc[:,countries].diff().rolling(7).mean().plot(ax=axes[1,1],logy=logy[3],title='New deaths')
 
 fig,axes = plt.subplots(nrows=2,ncols=1)
 df_cases_pop.loc[:,countries].plot(ax=axes[0],title='Confirmed cases per 100k')

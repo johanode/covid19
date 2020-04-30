@@ -59,6 +59,8 @@ df_iva.index = pd.to_datetime(df_iva['Datum_vårdstart'])
 df_iva.loc[:,'Antal_intensivvårdade'].fillna(0,inplace=True)  
 df_iva.drop(['Datum_vårdstart'],axis=1,inplace=True)
 
+df_reg = xl.parse('Totalt antal per region') #pd.read_excel(url,sheet_name=1)
+
 xl.close()
 
 #%% Merge to one dataframe
