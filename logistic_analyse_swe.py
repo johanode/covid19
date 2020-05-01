@@ -92,20 +92,20 @@ fig,axes = plt.subplots(nrows=2,ncols=2)
 cols = ['Totalt_antal_fall', 'Stockholm_antal_fall']
 df.loc[:,cols].cumsum().plot(ax=axes[0,0])
 
-df.loc[:,cols].rolling(7).mean().plot(ax=axes[0,1])
+df.loc[:,cols].rolling(7,center=True).mean().plot(ax=axes[0,1])
 plt.ylabel('Antal per dag (rull=7)')
 
 cols = ['Antal_avlidna','Antal_intensivvårdade']
 df.loc[:,cols].cumsum().plot(ax=axes[1,0])
 
-df.loc[:,cols].rolling(7).mean().plot(ax=axes[1,1])
+df.loc[:,cols].rolling(7,center=True).mean().plot(ax=axes[1,1])
 plt.ylabel('Antal per dag (rull=7)')
 
 fig,axes = plt.subplots(nrows=1,ncols=2)
 #cols = [x for x in df.columns if x not in cols]
 cols = [new_cols[col] for col in ['Västra_Götaland', 'Uppsala', 'Skåne', 'Västerbotten', 'Norrbotten']]
 df.loc[:,cols].cumsum().plot(ax=axes[0])
-df.loc[:,cols].rolling(7).mean().plot(ax=axes[1])
+df.loc[:,cols].rolling(7,center=True).mean().plot(ax=axes[1])
 plt.ylabel('Antal per dag (rull=7)')
 
 #%% Plot selected columns with respect to poulation
@@ -126,7 +126,7 @@ plt.ylabel('Case per 100k')
     
 plt.subplot(212)
 for col in list(population.keys()):    
-    s = df.loc[:,new_cols[col]].rolling(7).mean()/population[col]*100e3
+    s = df.loc[:,new_cols[col]].rolling(7,center=True).mean()/population[col]*100e3
     plt.plot(s.values,label=col) 
 plt.ylabel('Case per day 100k')
 plt.legend()   
@@ -238,7 +238,7 @@ for dt in range(0,50):
 fig,axes = plt.subplots(nrows=2,ncols=1)
 cols2 = ['Antal_avlidna','Antal_intensivvårdade']
 cols1 = np.setdiff1d(cols,cols2)
-yhat[cols1].plot(ax=axes[0],logy=True)
+yhat[cols1].plot(ax=axes[0],logy=False)
 yhat[cols2].plot(ax=axes[1])
 
 #%% Fit logistic model with fix offset
@@ -279,7 +279,7 @@ plt.legend(loc=6)
 ax21 = plt.subplot(212)  
 for col in cols: 
     plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[0]+':.', label=col)         
-    plt.plot(m[col]['data']['t'], pd.Series(m[col]['data']['dy']).rolling(7).mean().values, colors[1]+'-', label=col) 
+    plt.plot(m[col]['data']['t'], pd.Series(m[col]['data']['dy']).rolling(7,center=True).mean().values, colors[1]+'-', label=col) 
     plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[2]+'--',label=col+' logistic fit')          
 plt.ylabel('Antal fall per dag')
 plt.legend(loc=2)
@@ -287,7 +287,7 @@ plt.legend(loc=2)
 ax22 = ax21.twinx()
 for n,col in enumerate(['Antal_intensivvårdade','Antal_avlidna']): 
     plt.plot(m[col]['data']['t'], m[col]['data']['dy'], colors[3*n+3]+'.:', label=col) 
-    plt.plot(m[col]['data']['t'], pd.Series(m[col]['data']['dy']).rolling(7).mean().values, colors[3*n+4]+'-', label=col) 
+    plt.plot(m[col]['data']['t'], pd.Series(m[col]['data']['dy']).rolling(7,center=True).mean().values, colors[3*n+4]+'-', label=col) 
     plt.plot(m[col]['fit']['t'], m[col]['fit']['dy'], colors[3*n+5]+'--',label=col+' logistic fit')               
     #plt.plot(m_b[col]['fit']['t'], m_b[col]['fit']['dy'], colors[4*n+5]+'--',label=col+(' logistic fit (b=+%.1f)' % db[n]))              
 plt.ylabel('Antal iva/avlidna per dag')
