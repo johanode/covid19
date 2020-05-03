@@ -86,10 +86,13 @@ for col in df:
     if 'antal_fall' in col:
         valid_cases = np.logical_and(df[col].cumsum().values>0,df.index<last_update)
         df[col.split('_')[0]+'_filter'] = valid_cases
+
+cols = ['Totalt_antal_fall', 'Stockholm_antal_fall']        
+df['Ovriga_antal_fall'] = df.loc[:,cols[::-1]].diff(axis='columns')['Totalt_antal_fall'].values.tolist()
         
 #%% Plot selected columns
 fig,axes = plt.subplots(nrows=2,ncols=2)
-cols = ['Totalt_antal_fall', 'Stockholm_antal_fall']
+cols = ['Totalt_antal_fall', 'Stockholm_antal_fall','Ovriga_antal_fall']
 df.loc[:,cols].cumsum().plot(ax=axes[0,0])
 
 df.loc[:,cols].rolling(7,center=True).mean().plot(ax=axes[0,1])
