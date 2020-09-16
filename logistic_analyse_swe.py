@@ -148,7 +148,7 @@ def logistic_b_mdl(x,a,c):
     #c is the total number of recorded infected people at the infection’s end
     return c/(1+np.exp(-(x-b)/a))
     
-def prepare(df, col, xhat=np.arange(0,250)):
+def prepare(df, col, xhat=np.arange(0,220)):
     dt=df.index-df.index[0]
     x0 = dt.days.values
     
