@@ -66,10 +66,10 @@ for country in df_cases.columns:
     
 
 #%% Plot selected countries
-countries = ['Italy','Spain','US','France','Germany','Finland','Norway','Denmark','Sweden']
+countries = ['Finland','Norway','Denmark','Sweden'] #'Italy','Spain','US','France','Germany',
 
 fig,axes = plt.subplots(nrows=2,ncols=2)
-logy=[True,True,False,False]
+logy=[False,False,False,False]
 df_cases.loc[:,countries].plot(ax=axes[0,0],logy=logy[0],title='Confirmed cases')
 df_deaths.loc[:,countries].plot(ax=axes[1,0],logy=logy[1],title='Deaths')
 df_cases.loc[:,countries].diff().rolling(7).mean().plot(ax=axes[0,1],logy=logy[2],title='Confirmed new cases')
